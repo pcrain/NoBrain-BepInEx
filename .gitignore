@@ -1,4 +1,7 @@
+# custom ones
+js/node_modules
 out
+release
 obj
 bin
 .idea

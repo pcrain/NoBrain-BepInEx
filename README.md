@@ -5,4 +5,4 @@ It displays what an item does when hovered over.
 
 ## Sneak Preview
 
-![Proof of Concept Showcase](res/showcasePOC.gif)
+![Showcase](res/showcase_1_0.gif)

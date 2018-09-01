@@ -1,35 +1,42 @@
 ﻿using System.Collections.Generic;
-using System.Collections.ObjectModel;
-using InControl;
 using UnityEngine;
 
 public class NoBrainBehaviour : MonoBehaviour {
 
-    private static readonly int PAGE_AMMO = 0;
-    private static readonly int PAGE_STATS = 1;
-    private static readonly int PAGE_LENGTH = 2;
+    private static readonly List<int> ITEM_BLACKLIST = new List<int>(new [] {
+        67, 73, 85, 120 // key, half heart, full heart, armor
+    });
 
-    private static readonly string ESCAPE_ROPE_SPRITE = "[sprite \"escape_rope_text_icon_001\"]";
+    private const int PAGE_AMMO = 0;
+    private const int PAGE_DESC = 1;
+    private const int PAGE_STATS = 2;
+    private const int PAGE_SYNERGIES = 3;
+    private const int PAGE_LENGTH = 4;
+
+    private const string SEPARATOR_TEXT = "[color #bada55][/color]";
     
-    private int lastHashcode = 0;
-
     private List<DefaultLabelController> lastLabels = new List<DefaultLabelController>();
-    private GungeonActions gungeonActions;
-
+    private int lastHashcode;
     private int currentPage = PAGE_AMMO;
     private int nextPage = PAGE_AMMO;
 
+    private GungeonActions gungeonActions;
     private string reloadSpriteTag;
+    private float lastGungeonActionsUpdate;
     
     private void Start() {
         NoBrain.LogFine("Start of NoBrainBehaviour");
     }
 
     private void Update() {
-        if (gungeonActions == null && GameManager.Instance != null && GameManager.Instance.PrimaryPlayer != null) {
-            var braveInput = BraveInput.GetInstanceForPlayer(GameManager.Instance.PrimaryPlayer.PlayerIDX);
+        lastGungeonActionsUpdate += Time.deltaTime;
+        if ((gungeonActions == null || lastGungeonActionsUpdate > 2f)
+            && GameManager.Instance != null && GameManager.Instance.PrimaryPlayer != null) {
+            // TODO even more expensive here, every couple seconds we check if there is new input
+            var braveInput = BraveInput.PrimaryPlayerInstance;
             gungeonActions = braveInput.ActiveActions;
-            reloadSpriteTag = getUISpriteStringForAction(braveInput.IsKeyboardAndMouse(), gungeonActions.ReloadAction);
+            reloadSpriteTag = gungeonActions.ReloadAction.getUISpriteString(braveInput.IsKeyboardAndMouse());
+            lastGungeonActionsUpdate = 0;
         }
         if (gungeonActions?.ReloadAction.WasPressed ?? false) {
             nextPage = (currentPage + 1) % PAGE_LENGTH;
@@ -38,29 +45,33 @@ public class NoBrainBehaviour : MonoBehaviour {
         if (GameUIRoot.Instance == null) {
             return;
         }
-        var labels = GameUIRoot.Instance.extantBasicLabels;
-        var hashCode = labels.GetHashCode();
-        if (hashCode == lastHashcode) {
-            return;
-        }
 
         bool updateLabels = nextPage != currentPage;
         if (updateLabels) {
             currentPage = nextPage;
         }
+        var labels = GameUIRoot.Instance.extantBasicLabels;
+        var hashCode = labels.deepHashCode();
+        if (hashCode == lastHashcode && !updateLabels) {
+            return;
+        }
+        lastHashcode = hashCode;
         foreach (var label in labels) {
             if (lastLabels.Contains(label)) {
                 if (updateLabels) {
                     withItem(label, onUpdateLabel);
                 }
-                continue;
+            } else {
+                withItem(label, onNewLabel);
             }
-            withItem(label, onNewLabel);
         }
 
         // TODO expensive, could do with a little dynamic programming here...
         lastLabels = new List<DefaultLabelController>(labels);
     }
+    
+    private delegate void UseLabelAndItem(DefaultLabelController labelController, EncounterTrackable encounter,
+        PickupObject item);
 
     private void withItem(DefaultLabelController labelController, UseLabelAndItem action) {
         
@@ -75,39 +86,63 @@ public class NoBrainBehaviour : MonoBehaviour {
 //            NoBrain.LogFine("Not containing EncounterTrackable " + labelController.label.Text);
             return;
         }
+
+        var item = shopItemController.item;
+        if (item is ItemBlueprintItem) {
+            var newItem = PickupObjectDatabase.GetByEncounterName(
+                encounterTrackable.journalData.GetPrimaryDisplayName());
+            if (newItem != null) {
+                item = newItem;
+            } else {
+                NoBrain.Log("Couldn't find the real item behind the ItemBlueprintItem.");
+            }
+        }
         
-        action.Invoke(labelController, encounterTrackable, shopItemController.item);
+        action.Invoke(labelController, encounterTrackable, item);
     }
-    
-    private delegate void UseLabelAndItem(DefaultLabelController labelController, EncounterTrackable encounter,
-        PickupObject item);
     
     private void onNewLabel(DefaultLabelController labelController, EncounterTrackable encounter,
         PickupObject item) {
+        if (ITEM_BLACKLIST.Contains(item.PickupObjectId)) {
+            return;
+        }
+        
+        // add padding fix behaviour that only updates position and not the padding
+        labelController.gameObject.AddComponent<PositionUpdater>();
         
         // Text change
         var newText = labelController.label.Text;
-        newText += " " + ESCAPE_ROPE_SPRITE;
+        newText += SEPARATOR_TEXT;
         newText += getTextForPage(labelController, encounter, item);
         labelController.label.Text = newText;
-//        NoBrain.LogFine("NoBrainBehaviour setting text to: " + newText);
         
         // Layouting
+        labelController.enabled = false;
         labelController.label.TextScale = 2f;
         labelController.label.AutoHeight = true;
         labelController.label.WordWrap = true;
         labelController.label.Width = Screen.width / 3f;
+        labelController.label.Padding = new RectOffset(6,6,0,0);
+        labelController.label.Invalidate();
         labelController.panel.FitToContents();
+        labelController.panel.Invalidate();
+        labelController.Trigger();
     }
     
     private void onUpdateLabel(DefaultLabelController labelController, EncounterTrackable encounter,
         PickupObject item) {
         
+        NoBrainJsonItem noBrainJsonItem;
+        var success = NoBrain.jsonItemDict.TryGetValue(item.PickupObjectId, out noBrainJsonItem);
+        if (!success) {
+            return;
+        }
+        
         // Text change
         var newText = labelController.label.Text;
-        var indexOf = newText.IndexOf(ESCAPE_ROPE_SPRITE) + ESCAPE_ROPE_SPRITE.Length;
+        var indexOf = newText.IndexOf(SEPARATOR_TEXT) + SEPARATOR_TEXT.Length;
         if (indexOf == -1) {
-            newText = "ERROR FINDING ESCAPE ROPE";
+            newText = "ERROR FINDING SEPARATOR";
         } else {
             newText = newText.Substring(0, indexOf);
             newText += getTextForPage(labelController, encounter, item);
@@ -116,6 +151,7 @@ public class NoBrainBehaviour : MonoBehaviour {
 //        NoBrain.LogFine("NoBrainBehaviour updating text to: " + newText);
         
         // Layouting
+        labelController.label.AutoHeight = true;
         labelController.label.Invalidate();
         labelController.panel.FitToContents();
         labelController.panel.Invalidate();
@@ -124,56 +160,60 @@ public class NoBrainBehaviour : MonoBehaviour {
 
     private string getTextForPage(DefaultLabelController labelController, EncounterTrackable encounter,
         PickupObject item) {
-        string text;
+        string pageDescription;
+        string text = "";
+
+        var itemDictSuccess = NoBrain.jsonItemDict.TryGetValue(item.PickupObjectId, out var noBrainJsonItem);
         
-        if (currentPage == PAGE_AMMO) {
-            var passiveActiveString = item is PassiveItem ? "Passive" : "Active";
-            text = "[color #7d7d7d]"
-                   + " " + item.PickupObjectId
-                   + " " + item.quality
-                   + " " + passiveActiveString
-                   + "[/color]"
-                   + "\n[color #a0a0a0]" + encounter.journalData.GetAmmonomiconFullEntry(false, false)
-                   + "[/color]";
+        var passiveActiveString = item is PassiveItem ? "Passive" : "Active";
+        text = "[color #7d7d7d]";
+        if (NoBrain.SHOW_ITEM_IDS) {
+            text += " " + item.PickupObjectId;
+        }
+        text += " " + item.quality.getUISpriteString()
+                    + " " + passiveActiveString
+                    + "[/color]";
+        
+        if (currentPage == PAGE_AMMO || !itemDictSuccess) {
+            pageDescription = "Ammonomicon";
+            var ammonomiconFullEntry = encounter.journalData.GetAmmonomiconFullEntry(false, false);
+            if (ammonomiconFullEntry.Length > 0) {
+                text += "\n[color #a0a0a0]" + ammonomiconFullEntry.TrimEnd()
+                       + "[/color]";
+            }
+        } else if (currentPage == PAGE_DESC) {
+            pageDescription = "Description";
+            text += "\n[color #a0a0a0]" + noBrainJsonItem.desc + "[/color]";
         } else if (currentPage == PAGE_STATS) {
-            text = "\n[color #ff69b4]wow[/color]\n" +
-                   "[sprite \"master_token_icon_001\"][sprite \"master_token_icon_002\"][sprite \"master_token_icon_003\"]" +
-                   "[sprite \"master_token_icon_004\"][sprite \"master_token_icon_005\"]";
+            pageDescription = "Stats";
+            text += "\n[color #a0a0a0]" + noBrainJsonItem.stats + "[/color]";
+        } else if (currentPage == PAGE_SYNERGIES) {
+            pageDescription = "Synergies";
+            var synergySuccess = NoBrain.synergyDict.TryGetValue(item.PickupObjectId, out var synergyList);
+            if (synergySuccess) {
+                foreach (var advancedSynergyEntry in synergyList) {
+                    var mandatoryItemString = advancedSynergyEntry.getMandatoryString();
+                    var optionalItemString = advancedSynergyEntry.getOptionalString();
+                    text += "\n[color #98FAFF]" + advancedSynergyEntry.getName()
+                                                + "[/color] " + advancedSynergyEntry.NumberObjectsRequired
+                                                + " of (" + mandatoryItemString + ") [" + optionalItemString + "]";
+                }
+                text += "";
+            } else {
+                text = "\nNo Synergies found.";
+            }
         } else {
+            pageDescription = "ERROR";
             text = "INVALID PAGE";
         }
 
-        return text + "\n[color blue](" + (currentPage+1) + "/" + PAGE_LENGTH + ") Press " + reloadSpriteTag +
-                " for next page.[/color]";
-    }
-
-
-    private static string getUISpriteStringForAction(bool keyboardAndMouse,
-        PlayerAction playerAction) {
-        if (keyboardAndMouse) {
-            var str = "-";
-            for (int index = 0; index < playerAction.Bindings.Count; ++index) {
-                BindingSource binding = playerAction.Bindings[index];
-                if ((binding.BindingSourceType == BindingSourceType.KeyBindingSource ||
-                     binding.BindingSourceType == BindingSourceType.MouseBindingSource)) {
-                    str = binding.Name;
-                    break;
-                }
-            }
-            return str.Trim();
+        if (!itemDictSuccess) {
+            // skip footer, only one page available
+            return text;
         }
-        
-        var bindings = playerAction.Bindings;
-        if (bindings.Count > 0) {
-            for (int i = 0; i < bindings.Count; i++) {
-                var deviceBindingSource = bindings[i] as DeviceBindingSource;
-                if (deviceBindingSource != null &&
-                    deviceBindingSource.Control != InputControlType.None) {
-                    return UIControllerButtonHelper.GetUnifiedControllerButtonTag(
-                        deviceBindingSource.Control, BraveInput.PlayerOneCurrentSymbology);
-                }
-            }
-        }
-        return playerAction.Name;
+
+        return text + "\n[color #3f704d]" + pageDescription + "(" + (currentPage+1) + "/"
+               + PAGE_LENGTH + ") Press " + reloadSpriteTag + "[/color]";
     }
+    
 }
