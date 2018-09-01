@@ -1,0 +1,7 @@
+Name: NoBrain
+Version: 1.0
+Author: markusmo3
+
+DLL: NoBrain.dll
+
+Depends: Base 0.2
