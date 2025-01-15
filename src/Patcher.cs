@@ -1,9 +1,9 @@
 ﻿using System.Reflection;
-using Harmony;
+using HarmonyLib;
 
 static class Patcher {
     public static void doPatch() {
-        var harmony = HarmonyInstance.Create("com.github.markusmo3.nobrain");
+        var harmony = new Harmony("com.github.markusmo3.nobrain");
         harmony.PatchAll(Assembly.GetExecutingAssembly());
     }
 }

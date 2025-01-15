@@ -1,10 +1,18 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using BepInEx;
 using Newtonsoft.Json;
 using UnityEngine;
 
-public class NoBrain : ETGModule {
+[BepInPlugin(GUID, NAME, VERSION)]
+[BepInDependency(ETGModMainBehaviour.GUID)]
+
+public class NoBrain : BaseUnityPlugin {
+
+    public const string GUID = "lazymo3_and_NilT_PL.etg.NoBrain";
+    public const string NAME = "No Brain";
+    public const string VERSION = "1.1.0";
 
 #if DEBUG
     public static bool FINE_LOGGING = true;
@@ -17,7 +25,7 @@ public class NoBrain : ETGModule {
     public static bool SHOW_SHRINES = true;
     public static bool SHOW_CHEST_CONTENTS = false;
 
-    public override void Init() {
+    public void Awake() {
         LogFine("ModInit");
         
         Patcher.doPatch();
@@ -50,15 +58,16 @@ public class NoBrain : ETGModule {
             ;
     }
 
-    public override void Start() {
+    public void Start() {
+        ETGModMainBehaviour.WaitForGameManagerStart(GMStart);
+    }
+
+    public void GMStart(GameManager gameManager)
+    {
         LogFine("ModStart");
         NoBrainDB.Load();
         ETGModMainBehaviour.Instance.gameObject.AddComponent<NBInteractableBehaviour>();
-//        ETGModMainBehaviour.Instance.gameObject.AddComponent<AbstractNBInteractableBehaviour>();
-    }
-
-    public override void Exit() {
-        LogFine("ModExit");
+        //        ETGModMainBehaviour.Instance.gameObject.AddComponent<AbstractNBInteractableBehaviour>();
     }
 
     public static void Log(string message) {
