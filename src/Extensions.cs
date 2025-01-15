@@ -145,4 +145,8 @@ public static class Extensions {
         var component = item.GetComponent<EncounterTrackable>();
         return component == null ? item.DisplayName : component.journalData.GetPrimaryDisplayName();
     }
+    
+    public static string getSimpleTypeName(this Object o) {
+        return o == null ? "Null" : o.GetType().Name;
+    }
 }

@@ -27,7 +27,7 @@ c.queue([{
     callback: handle(retrieveAllGuns)
 }]);
 
-var FILE_FORMAT = "public class NoBrainDB {\n" +
+var FILE_FORMAT = "public class NoBrainJsonDB {\n" +
     "    public static readonly string ITEM_JSON = \"{}\";\n" +
     "    public static readonly string SHRINE_JSON = \"{}\";\n" +
     "}";
@@ -57,7 +57,7 @@ function retrieveAllGuns($) {
     //     escapeAndStringifyJson(gunJsonArray),
     //     escapeAndStringifyJson(shrinesJsonArray));
     //
-    // fs.writeFile("../src/NoBrainDB.cs", fileString, function(err) {
+    // fs.writeFile("../src/NoBrainJsonDB.cs", fileString, function(err) {
     //     if(err) {
     //         return console.log(err);
     //     }

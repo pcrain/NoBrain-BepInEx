@@ -33,6 +33,10 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <ItemGroup>
+    <Reference Include="0Harmony, Version=1.2.0.1, Culture=neutral, PublicKeyToken=null">
+      <HintPath>packages\Lib.Harmony.1.2.0.1\lib\net35\0Harmony.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
     <Reference Include="Assembly-CSharp, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null">
       <HintPath>C:\Program Files (x86)\Steam\steamapps\common\Enter the Gungeon\EtG_Data\Managed\Assembly-CSharp.dll</HintPath>
       <Private>False</Private>
@@ -57,15 +61,21 @@
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="src\Extensions.cs" />
     <Compile Include="src\MultiValueDict.cs" />
-    <Compile Include="src\NoBrainBehaviour.cs" />
+    <Compile Include="src\NBInteractableBehaviour.cs" />
     <Compile Include="src\NoBrain.cs" />
     <Compile Include="src\NoBrainDB.cs" />
+    <Compile Include="src\NoBrainJsonDB.cs" />
+    <Compile Include="src\Patcher.cs" />
+    <Compile Include="src\AbstractNBInteractableBehaviour.cs" />
     <Compile Include="src\PositionUpdater.cs" />
   </ItemGroup>
   <ItemGroup>
     <Content Include=".gitignore" />
     <Content Include="LICENSE" />
     <Content Include="README.md" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="packages.config" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
