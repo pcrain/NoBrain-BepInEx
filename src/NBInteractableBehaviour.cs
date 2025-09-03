@@ -18,7 +18,7 @@ public class NBInteractableBehaviour : AbstractNBInteractableBehaviour {
     }
 
     protected override void onNewInteractable(IPlayerInteractable interactable) {
-        if (interactable is ShopItemController sic) {
+        if (interactable is ShopItemController sic && sic != null) {
             with(sic.transform, sic.item, onNewShopItemController);
         } else if (interactable is PickupObject po) {
             if (NoBrainDB.ITEM_BLACKLIST.Contains(po.PickupObjectId)) {
@@ -28,7 +28,7 @@ public class NBInteractableBehaviour : AbstractNBInteractableBehaviour {
             // spawn the label here first
             spawnPickupObjectLabel(po, po.transform);
             with(po.transform, po, onNewShopItemController);
-        } else if (interactable is RewardPedestal rp) {
+        } else if (interactable is RewardPedestal rp && rp != null) {
             PickupObject ipo = rp.contents;
             if (NoBrainDB.ITEM_BLACKLIST.Contains(ipo.PickupObjectId)) {
                 return;
@@ -37,7 +37,7 @@ public class NBInteractableBehaviour : AbstractNBInteractableBehaviour {
             // spawn the label here first
             spawnPickupObjectLabel(ipo, rp.spawnTransform);
             with(rp.spawnTransform, ipo, onNewShopItemController);
-        } else if (interactable is Chest c && NoBrain.SHOW_CHEST_CONTENTS) {
+        } else if (interactable is Chest c && c != null && NoBrain.SHOW_CHEST_CONTENTS) {
             spawnChestLabel(c);
         }
     }
@@ -76,13 +76,13 @@ public class NBInteractableBehaviour : AbstractNBInteractableBehaviour {
     }
 
     protected override void onReloadPressed(IPlayerInteractable interactable) {
-        if (interactable is ShopItemController sic) {
+        if (interactable is ShopItemController sic && sic != null) {
             currentPage = (currentPage + 1) % PAGE_LENGTH;
             with(sic.transform, sic.item, onUpdateShopItemController);
-        } else if (interactable is PickupObject po) {
+        } else if (interactable is PickupObject po && po != null) {
             currentPage = (currentPage + 1) % PAGE_LENGTH;
             with(po.transform, po, onUpdateShopItemController);
-        } else if (interactable is RewardPedestal rp) {
+        } else if (interactable is RewardPedestal rp && rp != null) {
             currentPage = (currentPage + 1) % PAGE_LENGTH;
             with(rp.spawnTransform, rp.contents, onUpdateShopItemController);
         }
@@ -92,6 +92,10 @@ public class NBInteractableBehaviour : AbstractNBInteractableBehaviour {
         EncounterTrackable encounter, PickupObject item);
 
     private void with(Transform transform, PickupObject po, UseLabelAndItem action) {
+        if (po == null) {
+            return;
+        }
+
         if (NoBrainDB.ITEM_BLACKLIST.Contains(po.PickupObjectId)) {
             return;
         }
